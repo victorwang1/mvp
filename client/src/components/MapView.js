@@ -1,17 +1,24 @@
 import React from 'react';
 import $ from 'jquery';
-import MapboxGl from '../../dist/mapbox-gl.js'
+import MapboxGl from '../../dist/mapbox-gl.js';
+import Search from './SearchView.js';
 
 class Map extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      restaurants: []
+      map: null,
+      currentLayer: '0',
+      restaurants: [],
+      filteredRestaurants: []
     }
 
     this.getRestaurants = this.getRestaurants.bind(this);
     this.mapData = this.mapData.bind(this);
     this.addPlaces = this.addPlaces.bind(this);
+    this.filterRestaurants = this.filterRestaurants.bind(this);
+    this.clearSearch = this.clearSearch.bind(this);
+    this.rerenderWith = this.rerenderWith.bind(this);
   }
 
   componentWillMount() {
@@ -26,10 +33,27 @@ class Map extends React.Component {
       center: [-122.41, 37.78],
       zoom: 12
     })
+    this.setState({map: map});
 
     map.on('load', () => {
-      this.addPlaces(map, this.state.restaurants);
+      this.addPlaces(this.state.map, this.state.restaurants);
     });
+  }
+
+  componentWillUpdate() {
+    if (this.map) this.rerenderWith(this.state.filteredRestaurants || this.state.restaurants);
+  }
+
+  rerenderWith(data) {
+    var map = this.state.map;
+    map.removeLayer(this.state.currentLayer);
+    this.setState({currentLayer: String(Number(this.state.currentLayer) + 1)}, () => {
+      this.addPlaces(this.state.map, data);
+    })
+  }
+
+  clearSearch() {
+    this.rerenderWith(this.state.restaurants);
   }
 
   getRestaurants() {
@@ -37,8 +61,17 @@ class Map extends React.Component {
       url: '/restaurants',
       dataType: 'json'
     })
-     .done(data => this.setState({restaurants: data.businesses}))
+     .done(data => {this.setState({restaurants: data.businesses})})
      .fail(err => console.log(err)) ;
+  }
+
+  filterRestaurants(keyword) {
+    this.setState({filteredRestaurants: this.state.restaurants.filter(restaurant => {
+      return restaurant.categories.some(category => category.alias.includes(keyword));
+    })}, () => {
+      console.log(this.state.filteredRestaurants);
+      this.rerenderWith(this.state.filteredRestaurants);
+    });
   }
 
   mapData(data) {
@@ -56,7 +89,7 @@ class Map extends React.Component {
 
   addPlaces(map, dataArray) {
     map.addLayer({
-        "id": "points",
+        "id": this.state.currentLayer,
         "type": "symbol",
         "source": {
             "type": "geojson",
@@ -80,10 +113,12 @@ class Map extends React.Component {
 
   render() {
     return (
-      <div className='Map' ref={(x) => { this.container = x }}>
+      <div>
+        <Search filterRestaurants={this.filterRestaurants} clearSearch={this.clearSearch} />
+        <div className='Map' ref={(x) => { this.container = x }}></div>
       </div>
     )
   }
 }
 
-export default Map
+export default Map;

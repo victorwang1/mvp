@@ -26,7 +26,7 @@ app.get('/restaurants', (req, res) => {
     qs: {
       latitude: 37.78,
       longitude: -122.41,
-      radius: 2000,
+      radius: 5000,
       limit: 50,
       sort_by: 'rating'
     },
